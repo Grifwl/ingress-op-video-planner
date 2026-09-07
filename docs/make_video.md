@@ -1,16 +1,18 @@
 # Building the video with ffmpeg
 
 You should have a folder of numbered PNG frames from
-[`render_images.md`](render_images.md) (e.g. `sample_0001.png`,
-`sample_0002.png`, ...).
+[`render_images.md`](render_images.md) named `frame_0001.png`,
+`frame_0002.png`, etc. (using that exact filename template in QGIS means
+the commands below work unchanged, without editing them for your own
+operation).
 
 ## Silent video
 
 ```bash
-ffmpeg -framerate 1 -i sample_%04d.png \
+ffmpeg -framerate 1 -i frame_%04d.png \
   -vf "minterpolate=fps=25:mi_mode=blend" \
   -c:v libx264 -pix_fmt yuv420p -crf 18 \
-  sample_fade.mp4
+  silent.mp4
 ```
 
 - `-framerate 1` tells ffmpeg each input PNG represents one second of
@@ -28,10 +30,10 @@ share comfortably, two flags matter far more than anything else, and they
 combine:
 
 ```bash
-ffmpeg -framerate 1 -i sample_%04d.png \
+ffmpeg -framerate 1 -i frame_%04d.png \
   -vf "minterpolate=fps=12:mi_mode=blend" \
   -c:v libx264 -pix_fmt yuv420p -crf 23 \
-  sample_fade_small.mp4
+  silent_small.mp4
 ```
 
 - Lowering the interpolation target (`fps=12` instead of `fps=25`) simply
@@ -87,21 +89,25 @@ the YouTube Audio Library.
 
 ```bash
 # 1. Get the silent video's duration
-ffprobe -v error -show_entries format=duration -of csv=p=0 sample_fade.mp4
+ffprobe -v error -show_entries format=duration -of csv=p=0 silent.mp4
 # -> e.g. 298.04
 
 # 2. Mix in the music: loop it if it's shorter than the video, trim it to
 #    the video's exact length, and fade the last 3 seconds so it doesn't
 #    cut off abruptly.
-ffmpeg -i sample_fade.mp4 -stream_loop -1 -i music.mp3 \
+ffmpeg -i silent.mp4 -stream_loop -1 -i music.mp3 \
   -filter_complex "[1:a]atrim=0:298.04,afade=t=out:st=295.04:d=3[aout]" \
   -map 0:v -map "[aout]" \
   -c:v copy -c:a aac -b:a 192k -shortest \
-  sample_final.mp4
+  output.mp4
 ```
 
-Replace `298.04` (the video duration from step 1) and `295.04`
+`silent.mp4` here can just be the file dragged straight in from the
+previous step (or `silent_small.mp4` if you used the smaller-size
+variant). Replace `298.04` (the video duration from step 1) and `295.04`
 (`duration - 3`, where the fade-out starts) with your own numbers.
+`output.mp4` is a placeholder — rename it to whatever you want the final
+video called before running the command.
 
 - `-stream_loop -1` loops the music track indefinitely, so a short song
   never runs out before the video ends.
