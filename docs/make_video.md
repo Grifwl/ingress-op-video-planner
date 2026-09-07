@@ -21,6 +21,46 @@ ffmpeg -framerate 1 -i sample_%04d.png \
 - `-crf 18` is visually near-lossless; raise it (e.g. 23) for a smaller
   file if the video is only going to be shared online.
 
+### Smaller file size
+
+The settings above favor quality over size. If the file is too heavy to
+share comfortably, two flags matter far more than anything else, and they
+combine:
+
+```bash
+ffmpeg -framerate 1 -i sample_%04d.png \
+  -vf "minterpolate=fps=12:mi_mode=blend" \
+  -c:v libx264 -pix_fmt yuv420p -crf 23 \
+  sample_fade_small.mp4
+```
+
+- Lowering the interpolation target (`fps=12` instead of `fps=25`) simply
+  means fewer frames to encode. This is the single biggest lever — for
+  content like this (portals/links/fields slowly appearing, not fast
+  motion), 12fps still reads as smooth.
+- Raising `-crf` (18 → 23) asks the encoder for a lower bitrate at the
+  same resolution; 23 is still good quality for online sharing, just no
+  longer "near-lossless".
+
+Measured on a real 300-frame, 1920×1080, 298s render:
+
+| Settings | File size | Change |
+| --- | --- | --- |
+| `fps=25`, `crf 18` (quality settings above) | 9.4 MB | — |
+| `fps=12`, `crf 18` | 5.6 MB | -40% |
+| `fps=25`, `crf 23` | 7.2 MB | -23% |
+| `fps=12`, `crf 23` (combined, settings above) | 4.3 MB | -54% |
+
+A slower `-preset` (e.g. `veryslow`) is often suggested for smaller files
+at unchanged quality, but tested against this same footage it made no
+difference (in fact came out very slightly larger than the default
+`medium` preset) — not worth the much longer encode time here.
+
+If the video is headed for YouTube, keep in mind YouTube re-encodes
+whatever you upload anyway, so there's little reason to keep a
+near-lossless local master just to upload it — the smaller settings above
+are a safe default for that use case.
+
 ### Why the output is a couple of seconds shorter than the frame count
 
 If you exported, say, 300 PNG frames at one frame per second, you might
