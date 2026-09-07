@@ -21,34 +21,53 @@ ffmpeg -framerate 1 -i sample_%04d.png \
 - `-crf 18` is visually near-lossless; raise it (e.g. 23) for a smaller
   file if the video is only going to be shared online.
 
+### Why the output is a couple of seconds shorter than the frame count
+
+If you exported, say, 300 PNG frames at one frame per second, you might
+expect exactly 300 seconds of video — but `ffprobe` will report something
+like 298.04s. This is expected, and the shortfall doesn't depend on how
+many frames you have: it's a fixed amount, not proportional to the length
+of the sequence.
+
+The cause is `minterpolate` itself, not your QGIS export or frame count.
+Instead of just repeating stills, `minterpolate` generates each in-between
+frame by estimating motion *between* two real, consecutive source frames.
+That means it always needs one real frame before and one real frame after
+the point it's interpolating. Right at the very end of the sequence there
+is no "next" real frame to interpolate towards, so the filter cannot
+produce that last stretch of output and trims it off — always the same
+fixed amount (about 49 output frames at 25fps ≈ 1.96s), regardless of how
+long the source sequence is. It's an edge effect of the interpolation
+algorithm, not a bug in the pipeline or a sign that a frame is missing.
+
 ## Adding background music
 
-This second command hasn't been tested against a real track yet — treat it
-as a solid starting point to tune once you have music to try it with.
+Validated against a real render (300 frames) and a real music track from
+the YouTube Audio Library.
 
 ```bash
 # 1. Get the silent video's duration
 ffprobe -v error -show_entries format=duration -of csv=p=0 sample_fade.mp4
-# -> e.g. 254.0
+# -> e.g. 298.04
 
 # 2. Mix in the music: loop it if it's shorter than the video, trim it to
 #    the video's exact length, and fade the last 3 seconds so it doesn't
 #    cut off abruptly.
 ffmpeg -i sample_fade.mp4 -stream_loop -1 -i music.mp3 \
-  -filter_complex "[1:a]atrim=0:254.0,afade=t=out:st=251.0:d=3[aout]" \
+  -filter_complex "[1:a]atrim=0:298.04,afade=t=out:st=295.04:d=3[aout]" \
   -map 0:v -map "[aout]" \
   -c:v copy -c:a aac -b:a 192k -shortest \
   sample_final.mp4
 ```
 
-Replace `254.0` (the video duration from step 1) and `251.0`
+Replace `298.04` (the video duration from step 1) and `295.04`
 (`duration - 3`, where the fade-out starts) with your own numbers.
 
 - `-stream_loop -1` loops the music track indefinitely, so a short song
   never runs out before the video ends.
-- `atrim=0:254.0` cuts the (possibly looped) audio down to exactly the
+- `atrim=0:298.04` cuts the (possibly looped) audio down to exactly the
   video's length.
-- `afade=t=out:st=251.0:d=3` fades the last 3 seconds of audio to silence.
+- `afade=t=out:st=295.04:d=3` fades the last 3 seconds of audio to silence.
 - `-c:v copy` re-uses the already-encoded video stream as-is (fast, no
   quality loss); only the audio gets (re-)encoded.
 - `-shortest` is a safety net in case the trim/fade math is slightly off.
