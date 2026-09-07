@@ -6,27 +6,13 @@ frame.
 
 ## 1. Frame your map
 
-Before exporting, zoom/pan the map canvas to the extent you want in the
-final video, and style the three layers however you like (portal icons,
-link/field colors, a basemap, labels, etc.) — whatever is on the canvas
-when you export is what ends up in the video.
-
-**Get the aspect ratio right before you touch the extent.** YouTube's
-standard playback frame is 16:9 (e.g. 1920×1080). If you frame the map
-freely and only fix the pixel size in the export dialog afterwards, QGIS
-will export exactly the width/height you type — but the *content* you
-framed may end up stretched, cropped, or floating with big empty margins
-if your map canvas wasn't already 16:9 when you framed it (this is what
-happened in the test render: 1618×704 is roughly 2.3:1, not 16:9). To
-avoid that:
-
-1. Resize the QGIS map canvas panel itself (drag its edges, or maximize
-   the window and undock/resize the panel) until it is proportioned 16:9
-   — you don't need the exact pixel count, just the ratio; the export step
-   below will scale it to the exact resolution.
-2. *Then* zoom/pan to frame the operation, with some empty margin on all
-   sides so portals near the edge of the operation don't sit flush against
-   the video border.
+Before exporting, zoom/pan the map canvas to roughly the extent you want in
+the final video, with some empty margin on all sides so portals near the
+edge of the operation don't end up flush against the video border. Style
+the three layers however you like (portal icons, link/field colors, a
+basemap, labels, etc.). You don't need to be precise about the exact
+framing yet — the exact aspect ratio gets fixed in the export dialog, not
+here.
 
 ## 2. Export the animation
 
@@ -40,12 +26,24 @@ film-strip icon).
 - **Frame rate**: leave at `1` frame per second of animation time — the
   operation's own timestamps already carry the pacing; you'll set the
   *video's* playback smoothness later, in `ffmpeg`.
-- **Width/Height**: `1920` × `1080` (Full HD, 16:9 — YouTube's standard
-  resolution). Keep **Lock aspect ratio** enabled: since the canvas is
-  already 16:9 from step 1, this exports at the exact target resolution
-  without distorting or cropping anything. If you'd left the canvas at an
-  arbitrary shape, a locked aspect ratio here would preserve *that* shape
-  instead, not fix it — the ratio has to be right before you get here.
+- **Width/Height**: unlock the chain/lock icon next to these two fields
+  (if it's linked, unlinking it lets you set both independently), then
+  type `1920` and `1080` (Full HD, 16:9 — YouTube's standard resolution)
+  directly. Don't try to resize the on-screen map canvas panel to match —
+  QGIS never stretches the map to fit a pixel size; it keeps the map scale
+  fixed and grows the *visible extent* outward, symmetrically on every
+  side, to match whatever width/height you type. The main map canvas won't
+  visually refresh while the export dialog is open, but the extent values
+  shown in the dialog itself do update live as you change width/height —
+  you can watch them expand equally in every direction from the center you
+  had framed.
+
+Because the extent only ever grows outward from what you had framed in
+step 1, it can't crop anything that was already comfortably inside — it
+only adds empty margin. So as long as you left reasonable margin around
+the operation before opening the dialog, you're safe. If you want to be
+extra sure, export and open the first and last PNG afterwards; if
+anything looks tight, add more margin to the framing and export again.
 
 Click **Export** and QGIS renders one PNG per second of the animation
 range into your chosen folder. Open the first and last frame afterwards
