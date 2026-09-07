@@ -87,6 +87,65 @@ algorithm, not a bug in the pipeline or a sign that a frame is missing.
 Validated against a real render (300 frames) and a real music track from
 the YouTube Audio Library.
 
+**macOS / Linux / Git Bash (bash or zsh):**
+
+```bash
+DURATION=$(ffprobe -v error -show_entries format=duration -of csv=p=0 silent.mp4) && \
+FADE_START=$(awk "BEGIN{print $DURATION - 3}") && \
+ffmpeg -i silent.mp4 -stream_loop -1 -i music.mp3 \
+  -filter_complex "[1:a]atrim=0:$DURATION,afade=t=out:st=$FADE_START:d=3[aout]" \
+  -map 0:v -map "[aout]" \
+  -c:v copy -c:a aac -b:a 192k -shortest \
+  output.mp4
+```
+
+**Windows (PowerShell):**
+
+```powershell
+$DURATION = ffprobe -v error -show_entries format=duration -of csv=p=0 silent.mp4
+$FADE_START = $DURATION - 3
+ffmpeg -i silent.mp4 -stream_loop -1 -i music.mp3 -filter_complex "[1:a]atrim=0:${DURATION},afade=t=out:st=${FADE_START}:d=3[aout]" -map 0:v -map "[aout]" -c:v copy -c:a aac -b:a 192k -shortest output.mp4
+```
+
+`silent.mp4` here can just be the file dragged straight in from the
+previous step (or `silent_small.mp4` if you used the smaller-size
+variant). `output.mp4` is a placeholder — rename it to whatever you want
+the final video called before running the command.
+
+Both versions compute the video's duration itself with `ffprobe`
+(`DURATION`), and where the 3-second fade-out should start (`FADE_START`,
+`duration - 3`), then feed both straight into the `ffmpeg` filter — no
+numbers to edit by hand. In bash this needs `awk` for the subtraction,
+since bash can't do decimal arithmetic on its own; PowerShell converts the
+text to a number automatically. Either way, send the whole thing as one
+single command — in bash the `\` line continuations matter (or paste it
+as one line); in PowerShell each line runs in the same session as long as
+you paste all of them together. `$DURATION`/`$FADE_START` only exist for
+the shell process that set them, so running these as separate commands
+loses the variables in between.
+
+In the PowerShell version, `${DURATION}` and `${FADE_START}` are written
+with curly braces rather than plain `$DURATION`/`$FADE_START` — inside a
+double-quoted string, PowerShell treats `$FADE_START:d` as an attempt to
+read a scope-qualified variable (like `$env:PATH`), not "the variable
+followed by literal `:d`", which silently breaks the filter string. The
+curly braces remove the ambiguity.
+
+- `-stream_loop -1` loops the music track indefinitely, so a short song
+  never runs out before the video ends.
+- `atrim=0:$DURATION` cuts the (possibly looped) audio down to exactly the
+  video's length.
+- `afade=t=out:st=$FADE_START:d=3` fades the last 3 seconds of audio to
+  silence.
+- `-c:v copy` re-uses the already-encoded video stream as-is (fast, no
+  quality loss); only the audio gets (re-)encoded.
+- `-shortest` is a safety net in case the trim/fade math is slightly off.
+
+### Step by step (optional)
+
+Equivalent to the one-liner above, useful if you want to see the duration
+before running ffmpeg, or plug the numbers in manually:
+
 ```bash
 # 1. Get the silent video's duration
 ffprobe -v error -show_entries format=duration -of csv=p=0 silent.mp4
@@ -102,18 +161,5 @@ ffmpeg -i silent.mp4 -stream_loop -1 -i music.mp3 \
   output.mp4
 ```
 
-`silent.mp4` here can just be the file dragged straight in from the
-previous step (or `silent_small.mp4` if you used the smaller-size
-variant). Replace `298.04` (the video duration from step 1) and `295.04`
+Replace `298.04` (the video duration from step 1) and `295.04`
 (`duration - 3`, where the fade-out starts) with your own numbers.
-`output.mp4` is a placeholder — rename it to whatever you want the final
-video called before running the command.
-
-- `-stream_loop -1` loops the music track indefinitely, so a short song
-  never runs out before the video ends.
-- `atrim=0:298.04` cuts the (possibly looped) audio down to exactly the
-  video's length.
-- `afade=t=out:st=295.04:d=3` fades the last 3 seconds of audio to silence.
-- `-c:v copy` re-uses the already-encoded video stream as-is (fast, no
-  quality loss); only the audio gets (re-)encoded.
-- `-shortest` is a safety net in case the trim/fade math is slightly off.
