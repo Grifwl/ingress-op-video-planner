@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "op-video-planner"
+version = "0.1.0"
+description = "Turn an Ingress fielding-operation plan into timed QGIS animation layers"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
+dependencies = []
+
+[project.optional-dependencies]
+build = ["pyinstaller>=6.0"]
+
+[project.scripts]
+op-video-planner = "op_video_planner.cli:main"
+
+[project.gui-scripts]
+op-video-planner-gui = "op_video_planner.gui:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

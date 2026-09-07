@@ -1,0 +1,50 @@
+name: Build release executables
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            asset_name: op-video-planner-windows.exe
+            build_name: op-video-planner
+            built_path: dist/op-video-planner.exe
+          - os: macos-latest
+            asset_name: op-video-planner-macos
+            build_name: op-video-planner
+            built_path: dist/op-video-planner
+          - os: ubuntu-latest
+            asset_name: op-video-planner-linux
+            build_name: op-video-planner
+            built_path: dist/op-video-planner
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install package and build tools
+        run: pip install ".[build]"
+
+      - name: Build single-file executable
+        run: >
+          pyinstaller --onefile --windowed
+          --name ${{ matrix.build_name }}
+          src/op_video_planner/gui.py
+
+      - name: Rename artifact
+        shell: bash
+        run: cp "${{ matrix.built_path }}" "${{ matrix.asset_name }}"
+
+      - name: Upload to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.asset_name }}
